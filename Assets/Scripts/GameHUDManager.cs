@@ -1,9 +1,11 @@
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
+using UnityEngine.InputSystem;
 
 /// <summary>
 /// Gestor de la interfaz en partida (HUD), controles táctiles para móviles y menús de navegación:
+/// Compatible con el nuevo Input System de Unity 6 (com.unity.inputsystem):
 /// - Muestra coordenadas en tiempo real (X, Y, Z) para verificar el desplazamiento tridimensional.
 /// - Menú de Pausa con opciones de Continuar, Reiniciar y Volver al Menú Principal.
 /// - Pantallas de Game Over y Victoria con navegación completa.
@@ -67,8 +69,22 @@ public class GameHUDManager : MonoBehaviour
                                    $"Velocidad: (Vx: {vel.x:F1}, Vy: {vel.y:F1}, Vz: {vel.z:F1})";
         }
 
-        // 2. Control de pausa por teclado (Escape o P)
-        if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.P))
+        // 2. Control de pausa con Input System (Escape o P)
+        bool pausePressed = false;
+        if (Keyboard.current != null)
+        {
+            pausePressed = Keyboard.current.escapeKey.wasPressedThisFrame || Keyboard.current.pKey.wasPressedThisFrame;
+        }
+        else
+        {
+            try
+            {
+                pausePressed = Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.P);
+            }
+            catch (System.InvalidOperationException) { }
+        }
+
+        if (pausePressed)
         {
             TogglePause();
         }

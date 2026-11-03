@@ -370,7 +370,8 @@ public static class HelixGameSetup
     {
         GameObject esObj = new GameObject("EventSystem");
         esObj.AddComponent<EventSystem>();
-        esObj.AddComponent<StandaloneInputModule>();
+        // Usar InputSystemUIInputModule para permitir clics, toques y navegación en el nuevo Input System
+        esObj.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
     }
 
     private static GameObject CreateUIPanel(Transform parent, string name, Color bgColor)

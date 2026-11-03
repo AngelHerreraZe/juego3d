@@ -1,24 +1,25 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 /// <summary>
 /// Controlador de rotación de la torre central y plataformas helicoidales (Helix Jump).
+/// Compatible al 100% con el nuevo Input System de Unity 6 (com.unity.inputsystem) y móviles:
 /// Permite girar la torre sobre el eje Y mediante arrastre táctil (touch swipe),
-/// arrastre con ratón o teclas de flechas/teclado, permitiendo que la bola encuentre los huecos.
+/// arrastre con ratón (drag) o teclas de flechas/teclado (A/D, Q/E, Flechas).
 /// Basado en el tutorial de referencia: https://www.youtube.com/watch?v=QYUgb5pHi9c
 /// </summary>
 public class HelixTowerController : MonoBehaviour
 {
     [Header("Sensibilidad de Rotación")]
     [Tooltip("Velocidad de giro mediante arrastre táctil o ratón")]
-    [SerializeField] private float rotationSpeedTouch = 0.4f;
+    [SerializeField] private float rotationSpeedTouch = 0.35f;
 
     [Tooltip("Velocidad de giro mediante teclado")]
-    [SerializeField] private float rotationSpeedKey = 120.0f;
+    [SerializeField] private float rotationSpeedKey = 140.0f;
 
     [Tooltip("Suavizado de rotación")]
-    [SerializeField] private float rotationDamping = 8.0f;
+    [SerializeField] private float rotationDamping = 10.0f;
 
-    private Vector2 lastMousePosition;
     private float targetRotationY;
     private float currentRotationY;
 
@@ -30,29 +31,55 @@ public class HelixTowerController : MonoBehaviour
 
     void Update()
     {
-        // 1. Entrada táctil / Ratón
-        if (Input.GetMouseButtonDown(0))
+        float dragDeltaX = 0f;
+
+        // 1. Entrada de arrastre con Ratón (Nuevo Input System)
+        if (Mouse.current != null && Mouse.current.leftButton.isPressed)
         {
-            lastMousePosition = Input.mousePosition;
+            dragDeltaX = Mouse.current.delta.x.ReadValue();
         }
-        else if (Input.GetMouseButton(0))
+        // 2. Entrada de arrastre con Pantalla Táctil (Móviles)
+        else if (Touchscreen.current != null && Touchscreen.current.primaryTouch.press.isPressed)
         {
-            Vector2 delta = (Vector2)Input.mousePosition - lastMousePosition;
-            targetRotationY -= delta.x * rotationSpeedTouch;
-            lastMousePosition = Input.mousePosition;
+            dragDeltaX = Touchscreen.current.primaryTouch.delta.x.ReadValue();
         }
 
-        // 2. Entrada de teclado (Flechas o teclas Q / E)
+        // Aplicar giro por arrastre
+        if (Mathf.Abs(dragDeltaX) > 0.01f)
+        {
+            targetRotationY -= dragDeltaX * rotationSpeedTouch;
+        }
+
+        // 3. Entrada de teclado (A/D, Flechas Izq/Der, Q/E)
         float keyInput = 0f;
-        if (Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.A)) keyInput += 1f;
-        if (Input.GetKey(KeyCode.RightArrow) || Input.GetKey(KeyCode.D)) keyInput -= 1f;
+        if (Keyboard.current != null)
+        {
+            if (Keyboard.current.leftArrowKey.isPressed || Keyboard.current.aKey.isPressed || Keyboard.current.qKey.isPressed)
+            {
+                keyInput += 1f;
+            }
+            if (Keyboard.current.rightArrowKey.isPressed || Keyboard.current.dKey.isPressed || Keyboard.current.eKey.isPressed)
+            {
+                keyInput -= 1f;
+            }
+        }
+        else
+        {
+            // Fallback legacy seguro
+            try
+            {
+                if (Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.A)) keyInput += 1f;
+                if (Input.GetKey(KeyCode.RightArrow) || Input.GetKey(KeyCode.D)) keyInput -= 1f;
+            }
+            catch (System.InvalidOperationException) { }
+        }
 
         if (Mathf.Abs(keyInput) > 0.01f)
         {
             targetRotationY += keyInput * rotationSpeedKey * Time.deltaTime;
         }
 
-        // 3. Interpolación suave del ángulo en el eje Y
+        // 4. Interpolación suave del ángulo en el eje Y
         currentRotationY = Mathf.Lerp(currentRotationY, targetRotationY, Time.deltaTime * rotationDamping);
         transform.rotation = Quaternion.Euler(0f, currentRotationY, 0f);
     }

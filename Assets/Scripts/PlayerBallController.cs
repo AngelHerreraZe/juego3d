@@ -1,11 +1,13 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 /// <summary>
 /// Controlador de movimiento y física para el personaje principal (Bola/Esfera).
-/// Cumple estrictamente con los criterios de la Actividad 3188:
+/// Compatible al 100% con el nuevo Input System de Unity 6 (com.unity.inputsystem)
+/// y adaptado para móviles táctiles y teclado:
 /// 1. Desplazamiento observable y continuo en los tres ejes del espacio tridimensional (X, Y, Z).
 /// 2. Rebote controlado en el eje Y mediante impulso por script (evita la acumulación infinita de energía del Physic Material explicada en el tutorial QYUgb5pHi9c).
-/// 3. Soporte para entrada de teclado (WASD / Flechas), pantalla táctil y botones virtuales en dispositivos móviles.
+/// 3. Soporte para entrada de teclado (WASD / Flechas / Espacio), pantalla táctil y botones virtuales en dispositivos móviles.
 /// </summary>
 [RequireComponent(typeof(Rigidbody))]
 [RequireComponent(typeof(SphereCollider))]
@@ -59,25 +61,46 @@ public class PlayerBallController : MonoBehaviour
         rb.useGravity = true;
         rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
         
-        // Congelamos rotaciones físicas si queremos que el control sea directo, o dejamos que ruede libremente
+        // Congelamos rotaciones físicas si queremos que el control sea directo
         rb.constraints = RigidbodyConstraints.FreezeRotation;
     }
 
     void Update()
     {
-        // 1. Captura de entradas estándar (Teclado / Joystick / Input legacy o nuevo)
-        float horizontal = Input.GetAxisRaw("Horizontal"); // A/D o Flechas Izq/Der -> Eje X
-        float vertical = Input.GetAxisRaw("Vertical");     // W/S o Flechas Arr/Abajo -> Eje Z
+        // 1. Captura de entradas con el nuevo Input System (Keyboard)
+        float horizontal = 0f;
+        float vertical = 0f;
+
+        if (Keyboard.current != null)
+        {
+            if (Keyboard.current.aKey.isPressed || Keyboard.current.leftArrowKey.isPressed) horizontal -= 1f;
+            if (Keyboard.current.dKey.isPressed || Keyboard.current.rightArrowKey.isPressed) horizontal += 1f;
+            if (Keyboard.current.wKey.isPressed || Keyboard.current.upArrowKey.isPressed) vertical += 1f;
+            if (Keyboard.current.sKey.isPressed || Keyboard.current.downArrowKey.isPressed) vertical -= 1f;
+
+            if (Keyboard.current.spaceKey.wasPressedThisFrame)
+            {
+                requestJump = true;
+            }
+        }
+        else
+        {
+            // Fallback seguro a Input legacy (si está habilitado en PlayerSettings)
+            try
+            {
+                horizontal = Input.GetAxisRaw("Horizontal");
+                vertical = Input.GetAxisRaw("Vertical");
+                if (Input.GetKeyDown(KeyCode.Space)) requestJump = true;
+            }
+            catch (System.InvalidOperationException)
+            {
+                // Ignorar excepción si legacy input está deshabilitado
+            }
+        }
 
         // Combinar con entradas virtuales móviles si no hay teclado activo
         if (Mathf.Abs(horizontal) > 0.01f) inputX = horizontal;
         if (Mathf.Abs(vertical) > 0.01f) inputZ = vertical;
-
-        // Salto manual por teclado (Barra espaciadora)
-        if (Input.GetKeyDown(KeyCode.Space))
-        {
-            requestJump = true;
-        }
     }
 
     void FixedUpdate()
