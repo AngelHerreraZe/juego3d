@@ -3,33 +3,18 @@ using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using UnityEngine.InputSystem;
 
-/// <summary>
-/// Gestor de la interfaz en partida (HUD), controles táctiles para móviles y menús de navegación:
-/// Compatible con el nuevo Input System de Unity 6 (com.unity.inputsystem):
-/// - Muestra coordenadas en tiempo real (X, Y, Z) para verificar el desplazamiento tridimensional.
-/// - Menú de Pausa con opciones de Continuar, Reiniciar y Volver al Menú Principal.
-/// - Pantallas de Game Over y Victoria con navegación completa.
-/// </summary>
 public class GameHUDManager : MonoBehaviour
 {
     public static GameHUDManager Instance { get; private set; }
 
-    [Header("Referencias del Jugador")]
     [SerializeField] private PlayerBallController player;
     [SerializeField] private HelixTowerController tower;
-
-    [Header("Paneles de Navegación UI")]
     [SerializeField] private GameObject hudPanel;
     [SerializeField] private GameObject pausePanel;
     [SerializeField] private GameObject gameOverPanel;
     [SerializeField] private GameObject victoryPanel;
-
-    [Header("Textos Informativos (UnityEngine.UI)")]
-    [Tooltip("Texto para desplegar coordenadas X, Y, Z en tiempo real")]
     [SerializeField] private Text coordinatesText;
     [SerializeField] private Text scoreText;
-
-    [Header("Nombres de Escenas")]
     [SerializeField] private string mainMenuSceneName = "MainMenuScene";
 
     private int score = 0;
@@ -59,7 +44,6 @@ public class GameHUDManager : MonoBehaviour
 
     void Update()
     {
-        // 1. Despliegue de telemetría tridimensional (X, Y, Z) en el HUD
         if (coordinatesText != null && player != null)
         {
             Vector3 pos = player.CurrentPosition;
@@ -69,7 +53,8 @@ public class GameHUDManager : MonoBehaviour
                                    $"Velocidad: (Vx: {vel.x:F1}, Vy: {vel.y:F1}, Vz: {vel.z:F1})";
         }
 
-        // 2. Control de pausa con Input System (Escape o P)
+        UpdateScoreText();
+
         bool pausePressed = false;
         if (Keyboard.current != null)
         {
@@ -92,7 +77,14 @@ public class GameHUDManager : MonoBehaviour
 
     public void AddScore(int points)
     {
-        score += points;
+        if (GameManager.singleton != null)
+        {
+            GameManager.singleton.AddScore(points);
+        }
+        else
+        {
+            score += points;
+        }
         UpdateScoreText();
     }
 
@@ -100,7 +92,10 @@ public class GameHUDManager : MonoBehaviour
     {
         if (scoreText != null)
         {
-            scoreText.text = $"Puntos: {score}";
+            int current = GameManager.singleton != null ? GameManager.singleton.currentScore : score;
+            int best = GameManager.singleton != null ? GameManager.singleton.bestScore : PlayerPrefs.GetInt("Highscore", 0);
+            int lvl = GameManager.singleton != null ? GameManager.singleton.currentLevel : PlayerPrefs.GetInt("CurrentLevel", 1);
+            scoreText.text = $"Puntos: {current}   Récord: {best}   Nivel: {lvl}";
         }
     }
 
@@ -124,7 +119,14 @@ public class GameHUDManager : MonoBehaviour
     public void RestartLevel()
     {
         Time.timeScale = 1.0f;
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        if (GameManager.singleton != null)
+        {
+            GameManager.singleton.RestartLevel();
+        }
+        else
+        {
+            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        }
     }
 
     public void ReturnToMainMenu()
@@ -154,7 +156,6 @@ public class GameHUDManager : MonoBehaviour
         if (hudPanel != null) hudPanel.SetActive(false);
     }
 
-    // Controles táctiles móviles en pantalla
     public void OnTouchLeft() { if (player != null) player.SetInputX(-1f); }
     public void OnTouchRight() { if (player != null) player.SetInputX(1f); }
     public void OnTouchForward() { if (player != null) player.SetInputZ(1f); }
