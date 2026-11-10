@@ -74,13 +74,40 @@ public class GameManager : MonoBehaviour
             PlayerPrefs.SetInt("Highscore", bestScore);
             PlayerPrefs.Save();
         }
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+
+        HelixController helix = FindAnyObjectByType<HelixController>();
+        if (helix != null && helix.allStages.Count > 0)
+        {
+            helix.LoadStage(currentLevel - 1);
+            PlayerBallController ball = FindAnyObjectByType<PlayerBallController>();
+            if (ball != null)
+            {
+                ball.ResetBall();
+            }
+        }
+        else
+        {
+            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        }
     }
 
     public void RestartLevel()
     {
         currentScore = 0;
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        HelixController helix = FindAnyObjectByType<HelixController>();
+        if (helix != null && helix.allStages.Count > 0)
+        {
+            helix.LoadStage(currentLevel - 1);
+            PlayerBallController ball = FindAnyObjectByType<PlayerBallController>();
+            if (ball != null)
+            {
+                ball.ResetBall();
+            }
+        }
+        else
+        {
+            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        }
     }
 
     public void ResetProgress()

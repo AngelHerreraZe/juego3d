@@ -18,6 +18,7 @@ public class PlayerBallController : MonoBehaviour
     private float inputX;
     private float inputZ;
     private bool requestJump;
+    private Vector3 startPosition;
 
     public Vector3 CurrentPosition => transform.position;
     public Vector3 CurrentVelocity => rb != null ? rb.linearVelocity : Vector3.zero;
@@ -36,6 +37,11 @@ public class PlayerBallController : MonoBehaviour
         rb.useGravity = true;
         rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
         rb.constraints = RigidbodyConstraints.FreezeRotation;
+    }
+
+    void Start()
+    {
+        startPosition = transform.position;
     }
 
     void Update()
@@ -101,6 +107,14 @@ public class PlayerBallController : MonoBehaviour
 
     private void OnCollisionEnter(Collision collision)
     {
+        DeathPart deathPart = collision.transform.GetComponent<DeathPart>();
+        if (deathPart != null)
+        {
+            deathPart.HitDeathPart();
+            GameHUDManager.Instance?.TriggerGameOver();
+            return;
+        }
+
         ContactPoint contact = collision.contacts[0];
         if (contact.normal.y > 0.4f)
         {
@@ -136,6 +150,15 @@ public class PlayerBallController : MonoBehaviour
                     GameHUDManager.Instance?.AddScore(1);
                 }
             }
+        }
+    }
+
+    public void ResetBall()
+    {
+        transform.position = startPosition;
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector3.zero;
         }
     }
 

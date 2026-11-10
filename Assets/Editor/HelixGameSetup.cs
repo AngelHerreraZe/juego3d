@@ -4,42 +4,38 @@ using UnityEditor.SceneManagement;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using System.IO;
+using System.Collections.Generic;
 
-/// <summary>
-/// Script de Editor para automatizar la configuración completa del proyecto Helix Jump 3D:
-/// - Creación de materiales URP / Standard.
-/// - Construcción de la escena 'MainMenuScene' con GUI responsiva y navegación fluida.
-/// - Construcción de la escena 'GameScene' con jugador 3D, cámara con restricciones (X, Z sincronizados, Z fija, Y desacoplada), torre y HUD interactivo.
-/// - Configuración de Build Settings para la secuencia de ejecución requerida.
-/// </summary>
 public static class HelixGameSetup
 {
     private const string MaterialsPath = "Assets/Materials";
     private const string ScenesPath = "Assets/Scenes";
+    private const string PrefabsPath = "Assets/Prefabs";
+    private const string StagesPath = "Assets/Stages";
     private const string MainMenuScenePath = "Assets/Scenes/MainMenuScene.unity";
     private const string GameScenePath = "Assets/Scenes/GameScene.unity";
 
     [MenuItem("Tools/Helix Jump 3D/Configurar Proyecto y Escenas")]
     public static void SetupFullProject()
     {
-        Debug.Log("=== INICIANDO CONFIGURACIÓN INTEGRAL DE HELIX JUMP 3D ===");
-
         EnsureDirectories();
         CreateMaterials();
+        CreateHelixLevelPrefab();
+        CreateStages();
         CreateMainMenuScene();
         CreateGameScene();
         ConfigureBuildSettings();
 
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
-
-        Debug.Log("=== ¡PROYECTO HELIX JUMP 3D CONFIGURADO CON ÉXITO! ===");
     }
 
     private static void EnsureDirectories()
     {
         if (!AssetDatabase.IsValidFolder(MaterialsPath)) AssetDatabase.CreateFolder("Assets", "Materials");
         if (!AssetDatabase.IsValidFolder(ScenesPath)) AssetDatabase.CreateFolder("Assets", "Scenes");
+        if (!AssetDatabase.IsValidFolder(PrefabsPath)) AssetDatabase.CreateFolder("Assets", "Prefabs");
+        if (!AssetDatabase.IsValidFolder(StagesPath)) AssetDatabase.CreateFolder("Assets", "Stages");
     }
 
     private static Material GetOrCreateMaterial(string matName, Color color)
@@ -68,36 +64,131 @@ public static class HelixGameSetup
 
     private static void CreateMaterials()
     {
-        GetOrCreateMaterial("BallMaterial", new Color(0.15f, 0.45f, 0.95f));       // Azul vibrante
-        GetOrCreateMaterial("TowerMaterial", new Color(0.20f, 0.25f, 0.32f));      // Gris oscuro
-        GetOrCreateMaterial("PlatformMaterial", new Color(0.96f, 0.62f, 0.05f));   // Amarillo/Naranja lúdico
-        GetOrCreateMaterial("HazardMaterial", new Color(0.92f, 0.22f, 0.22f));     // Rojo obstáculo
-        GetOrCreateMaterial("GoalMaterial", new Color(0.06f, 0.72f, 0.48f));       // Verde meta
+        GetOrCreateMaterial("BallMaterial", new Color(0.15f, 0.45f, 0.95f));
+        GetOrCreateMaterial("TowerMaterial", new Color(0.20f, 0.25f, 0.32f));
+        GetOrCreateMaterial("PlatformMaterial", new Color(0.96f, 0.62f, 0.05f));
+        GetOrCreateMaterial("HazardMaterial", new Color(0.92f, 0.22f, 0.22f));
+        GetOrCreateMaterial("GoalMaterial", new Color(0.06f, 0.72f, 0.48f));
+    }
+
+    private static void CreateHelixLevelPrefab()
+    {
+        string prefabPath = $"{PrefabsPath}/HelixLevelPrefab.prefab";
+        Material platMat = AssetDatabase.LoadAssetAtPath<Material>($"{MaterialsPath}/PlatformMaterial.mat");
+
+        GameObject root = new GameObject("HelixLevelPrefab");
+
+        GameObject triggerObj = new GameObject("PassScoreTrigger");
+        triggerObj.transform.SetParent(root.transform);
+        triggerObj.transform.localPosition = Vector3.zero;
+        BoxCollider bc = triggerObj.AddComponent<BoxCollider>();
+        bc.isTrigger = true;
+        bc.size = new Vector3(4.5f, 0.1f, 4.5f);
+        triggerObj.AddComponent<PassScorePoint>();
+
+        float towerRadius = 1.0f;
+        float ringOuterRadius = 2.4f;
+        float segDist = (towerRadius + ringOuterRadius) / 2f;
+        float segWidth = (ringOuterRadius - towerRadius);
+        float segLength = Mathf.Tan(15.0f * Mathf.Deg2Rad) * segDist * 2.1f;
+
+        for (int i = 0; i < 12; i++)
+        {
+            float angle = i * 30.0f;
+            float rad = angle * Mathf.Deg2Rad;
+            GameObject part = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            part.name = $"HelixPart_{i}";
+            part.transform.SetParent(root.transform);
+            part.transform.localPosition = new Vector3(Mathf.Sin(rad) * segDist, 0, Mathf.Cos(rad) * segDist);
+            part.transform.localRotation = Quaternion.Euler(0, angle, 0);
+            part.transform.localScale = new Vector3(segLength, 0.25f, segWidth);
+
+            if (platMat != null)
+            {
+                part.GetComponent<Renderer>().sharedMaterial = platMat;
+            }
+        }
+
+        PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
+        GameObject.DestroyImmediate(root);
+    }
+
+    private static void CreateStages()
+    {
+        CreateStageAsset("Stage_0", new Color(0.12f, 0.18f, 0.28f), new Color(0.95f, 0.72f, 0.15f), new Color(0.95f, 0.25f, 0.25f),
+            new List<Level>
+            {
+                new Level { partCount = 10, deathPartCount = 0 },
+                new Level { partCount = 10, deathPartCount = 1 },
+                new Level { partCount = 9,  deathPartCount = 1 },
+                new Level { partCount = 9,  deathPartCount = 2 },
+                new Level { partCount = 8,  deathPartCount = 2 },
+                new Level { partCount = 8,  deathPartCount = 3 }
+            });
+
+        CreateStageAsset("Stage_1", new Color(0.18f, 0.10f, 0.28f), new Color(0.25f, 0.85f, 0.35f), new Color(0.20f, 0.80f, 0.95f),
+            new List<Level>
+            {
+                new Level { partCount = 9, deathPartCount = 1 },
+                new Level { partCount = 9, deathPartCount = 2 },
+                new Level { partCount = 8, deathPartCount = 2 },
+                new Level { partCount = 8, deathPartCount = 3 },
+                new Level { partCount = 8, deathPartCount = 3 },
+                new Level { partCount = 7, deathPartCount = 4 },
+                new Level { partCount = 7, deathPartCount = 4 },
+                new Level { partCount = 6, deathPartCount = 5 }
+            });
+
+        CreateStageAsset("Stage_2", new Color(0.25f, 0.08f, 0.12f), new Color(0.15f, 0.90f, 0.85f), new Color(1.0f, 0.85f, 0.10f),
+            new List<Level>
+            {
+                new Level { partCount = 8, deathPartCount = 2 },
+                new Level { partCount = 8, deathPartCount = 3 },
+                new Level { partCount = 7, deathPartCount = 3 },
+                new Level { partCount = 7, deathPartCount = 4 },
+                new Level { partCount = 7, deathPartCount = 4 },
+                new Level { partCount = 6, deathPartCount = 5 },
+                new Level { partCount = 6, deathPartCount = 5 },
+                new Level { partCount = 5, deathPartCount = 5 }
+            });
+    }
+
+    private static void CreateStageAsset(string name, Color bg, Color partsColor, Color ballColor, List<Level> levels)
+    {
+        string path = $"{StagesPath}/{name}.asset";
+        Stage stage = AssetDatabase.LoadAssetAtPath<Stage>(path);
+        if (stage == null)
+        {
+            stage = ScriptableObject.CreateInstance<Stage>();
+            stage.stageBackgroundColor = bg;
+            stage.stageLevelPartColor = partsColor;
+            stage.stageBallColor = ballColor;
+            stage.levels = levels;
+            AssetDatabase.CreateAsset(stage, path);
+        }
+        else
+        {
+            stage.stageBackgroundColor = bg;
+            stage.stageLevelPartColor = partsColor;
+            stage.stageBallColor = ballColor;
+            stage.levels = levels;
+            EditorUtility.SetDirty(stage);
+        }
     }
 
     private static void CreateMainMenuScene()
     {
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
-        // 1. Cámara y Luz
         GameObject camObj = new GameObject("Main Camera");
         Camera cam = camObj.AddComponent<Camera>();
         cam.clearFlags = CameraClearFlags.SolidColor;
-        cam.backgroundColor = new Color(0.08f, 0.12f, 0.20f);
-        camObj.transform.position = new Vector3(0, 0, -10);
+        cam.backgroundColor = new Color(0.08f, 0.12f, 0.18f);
         camObj.tag = "MainCamera";
 
-        GameObject lightObj = new GameObject("Directional Light");
-        Light light = lightObj.AddComponent<Light>();
-        light.type = LightType.Directional;
-        light.color = Color.white;
-        lightObj.transform.rotation = Quaternion.Euler(50, -30, 0);
-
-        // 2. Event System
         CreateEventSystem();
 
-        // 3. Canvas Principal
-        GameObject canvasObj = new GameObject("Canvas");
+        GameObject canvasObj = new GameObject("MenuCanvas");
         Canvas canvas = canvasObj.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         CanvasScaler scaler = canvasObj.AddComponent<CanvasScaler>();
@@ -106,77 +197,66 @@ public static class HelixGameSetup
         scaler.matchWidthOrHeight = 0.5f;
         canvasObj.AddComponent<GraphicRaycaster>();
 
-        // 4. MenuManager
         MenuManager menuMgr = canvasObj.AddComponent<MenuManager>();
 
-        // 5. Panel Principal
         GameObject mainPanel = CreateUIPanel(canvasObj.transform, "MainPanel", new Color(0, 0, 0, 0));
 
-        // Título del Juego
-        CreateUIText(mainPanel.transform, "TitleText", "HELIX JUMP 3D", 72, FontStyle.Bold, Color.white,
-                     new Vector2(0, 450), new Vector2(900, 160));
+        CreateUIText(mainPanel.transform, "GameTitle", "HELIX JUMP 3D", 68, FontStyle.Bold,
+                     new Color(1f, 0.85f, 0.2f), new Vector2(0, 480), new Vector2(900, 140));
 
-        // Subtítulo
-        CreateUIText(mainPanel.transform, "SubtitleText", "Propuesta en 3D para Móviles - Actividad 3188", 30, FontStyle.Normal, new Color(0.8f, 0.85f, 0.95f),
-                     new Vector2(0, 360), new Vector2(900, 80));
+        CreateUIText(mainPanel.transform, "GameSubtitle", "Niveles de Juego Dinamicos y Procedimentales", 28, FontStyle.Italic,
+                     new Color(0.85f, 0.9f, 1f), new Vector2(0, 360), new Vector2(900, 80));
 
-        // Botón Jugar
         GameObject playBtn = CreateUIButton(mainPanel.transform, "PlayButton", "JUGAR / INICIAR", 38,
                                             new Color(0.15f, 0.55f, 0.95f), new Vector2(0, 100), new Vector2(500, 110));
         UnityEditor.Events.UnityEventTools.AddPersistentListener(playBtn.GetComponent<Button>().onClick, menuMgr.PlayGame);
 
-        // Botón Instrucciones
-        GameObject instrBtn = CreateUIButton(mainPanel.transform, "InstructionsButton", "CÓMO JUGAR / CONTROLES", 30,
+        GameObject instrBtn = CreateUIButton(mainPanel.transform, "InstructionsButton", "COMO JUGAR / CONTROLES", 30,
                                              new Color(0.25f, 0.35f, 0.50f), new Vector2(0, -50), new Vector2(500, 100));
         UnityEditor.Events.UnityEventTools.AddPersistentListener(instrBtn.GetComponent<Button>().onClick, menuMgr.ShowInstructions);
 
-        // Botón Salir
         GameObject quitBtn = CreateUIButton(mainPanel.transform, "QuitButton", "SALIR", 28,
                                             new Color(0.70f, 0.20f, 0.25f), new Vector2(0, -180), new Vector2(500, 90));
         UnityEditor.Events.UnityEventTools.AddPersistentListener(quitBtn.GetComponent<Button>().onClick, menuMgr.QuitGame);
 
-        // 6. Panel de Instrucciones (Inicialmente inactivo)
         GameObject instrPanel = CreateUIPanel(canvasObj.transform, "InstructionsPanel", new Color(0.05f, 0.08f, 0.15f, 0.95f));
         instrPanel.SetActive(false);
 
         CreateUIText(instrPanel.transform, "InstrTitle", "CONTROLES Y REGLAS 3D", 50, FontStyle.Bold, Color.white,
                      new Vector2(0, 480), new Vector2(900, 120));
 
-        string instrContent = "• Desplazamiento Tridimensional (X, Y, Z):\n" +
-                              "   - Eje X: Desplazamiento lateral (A / D o Flechas Izq / Der).\n" +
-                              "   - Eje Y: Rebote físico controlado e impulso por script al caer.\n" +
-                              "   - Eje Z: Desplazamiento en profundidad (W / S o Flechas Arr / Abajo).\n" +
-                              "   - Salto Manual: Tecla ESPACIO o botón táctil de salto.\n\n" +
-                              "• Rotación de la Torre Helicoidal:\n" +
-                              "   - Arrastra el ratón o desliza el dedo en pantalla móvil.\n" +
-                              "   - Busca los huecos para descender de nivel.\n\n" +
-                              "• Estabilidad de Cámara:\n" +
-                              "   - Seguimiento sincronizado en los ejes X y Z.\n" +
-                              "   - Distancia fija y constante en el eje Z.\n" +
-                              "   - Eje Y desacoplado para evitar vibraciones en móvil.";
+        string instrContent = "Desplazamiento Tridimensional (X, Y, Z):\n" +
+                              " - Eje X: Desplazamiento lateral (A / D o Flechas Izq / Der).\n" +
+                              " - Eje Y: Rebote fisico controlado al caer.\n" +
+                              " - Eje Z: Desplazamiento en profundidad (W / S o Flechas Arr / Abajo).\n" +
+                              " - Salto Manual: Tecla ESPACIO o boton tactil.\n\n" +
+                              "Rotacion de la Torre Helicoidal:\n" +
+                              " - Arrastra el raton o desliza el dedo en pantalla.\n" +
+                              " - Busca los huecos para descender de nivel.\n\n" +
+                              "Mecanica de Niveles Procedimentales:\n" +
+                              " - Partes de muerte rojas (DeathPart) reinician el bucle al perder.\n" +
+                              " - Plataforma verde final (Goal) conduce al siguiente nivel.\n" +
+                              " - Multiples etapas configurables desde ScriptableObjects.";
 
         CreateUIText(instrPanel.transform, "InstrBody", instrContent, 28, FontStyle.Normal, Color.white,
                      new Vector2(0, 60), new Vector2(850, 600));
 
-        GameObject backBtn = CreateUIButton(instrPanel.transform, "BackButton", "VOLVER AL MENÚ", 32,
+        GameObject backBtn = CreateUIButton(instrPanel.transform, "BackButton", "VOLVER AL MENU", 32,
                                             new Color(0.15f, 0.55f, 0.95f), new Vector2(0, -420), new Vector2(450, 100));
         UnityEditor.Events.UnityEventTools.AddPersistentListener(backBtn.GetComponent<Button>().onClick, menuMgr.ShowMainPanel);
 
-        // Enlazar referencias en MenuManager mediante SerializedObject
         SerializedObject so = new SerializedObject(menuMgr);
         so.FindProperty("mainPanel").objectReferenceValue = mainPanel;
         so.FindProperty("instructionsPanel").objectReferenceValue = instrPanel;
         so.ApplyModifiedProperties();
 
         EditorSceneManager.SaveScene(scene, MainMenuScenePath);
-        Debug.Log("Escena guardada: " + MainMenuScenePath);
     }
 
     private static void CreateGameScene()
     {
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
-        // 1. Iluminación Directional Light
         GameObject lightObj = new GameObject("Directional Light");
         Light light = lightObj.AddComponent<Light>();
         light.type = LightType.Directional;
@@ -184,48 +264,71 @@ public static class HelixGameSetup
         light.intensity = 1.2f;
         lightObj.transform.rotation = Quaternion.Euler(50, -30, 0);
 
-        // 2. Materiales cargados
         Material ballMat = AssetDatabase.LoadAssetAtPath<Material>($"{MaterialsPath}/BallMaterial.mat");
         Material towerMat = AssetDatabase.LoadAssetAtPath<Material>($"{MaterialsPath}/TowerMaterial.mat");
         Material platMat = AssetDatabase.LoadAssetAtPath<Material>($"{MaterialsPath}/PlatformMaterial.mat");
         Material hazMat = AssetDatabase.LoadAssetAtPath<Material>($"{MaterialsPath}/HazardMaterial.mat");
         Material goalMat = AssetDatabase.LoadAssetAtPath<Material>($"{MaterialsPath}/GoalMaterial.mat");
+        GameObject levelPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabsPath}/HelixLevelPrefab.prefab");
 
-        // 3. Torre Helix (Objeto Padre rotatorio)
+        Stage stage0 = AssetDatabase.LoadAssetAtPath<Stage>($"{StagesPath}/Stage_0.asset");
+        Stage stage1 = AssetDatabase.LoadAssetAtPath<Stage>($"{StagesPath}/Stage_1.asset");
+        Stage stage2 = AssetDatabase.LoadAssetAtPath<Stage>($"{StagesPath}/Stage_2.asset");
+
         GameObject towerObj = new GameObject("HelixTower");
         towerObj.transform.position = Vector3.zero;
         HelixTowerController towerCtrl = towerObj.AddComponent<HelixTowerController>();
-        HelixLevelBuilder levelBuilder = towerObj.AddComponent<HelixLevelBuilder>();
+        HelixController helixCtrl = towerObj.AddComponent<HelixController>();
 
-        SerializedObject soBuilder = new SerializedObject(levelBuilder);
-        soBuilder.FindProperty("towerMaterial").objectReferenceValue = towerMat;
-        soBuilder.FindProperty("platformMaterial").objectReferenceValue = platMat;
-        soBuilder.FindProperty("hazardMaterial").objectReferenceValue = hazMat;
-        soBuilder.FindProperty("goalMaterial").objectReferenceValue = goalMat;
-        soBuilder.ApplyModifiedProperties();
+        GameObject centralCylinder = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        centralCylinder.name = "CentralCylinder";
+        centralCylinder.transform.SetParent(towerObj.transform);
+        centralCylinder.transform.localPosition = new Vector3(0, -15.0f, 0);
+        centralCylinder.transform.localScale = new Vector3(2.0f, 20.0f, 2.0f);
+        if (towerMat != null) centralCylinder.GetComponent<Renderer>().sharedMaterial = towerMat;
 
-        // Generar geometría de la torre inmediatamente
-        levelBuilder.BuildHelixTower();
+        GameObject topObj = new GameObject("TopTransform");
+        topObj.transform.SetParent(towerObj.transform);
+        topObj.transform.localPosition = new Vector3(0, 3.5f, 0);
 
-        // 4. Personaje Principal (Ball / Esfera)
+        GameObject goalObj = new GameObject("GoalTransform");
+        goalObj.transform.SetParent(towerObj.transform);
+        goalObj.transform.localPosition = new Vector3(0, -25.0f, 0);
+
+        GameObject goalPlat = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        goalPlat.name = "GoalPlatform";
+        goalPlat.tag = "Goal";
+        goalPlat.transform.SetParent(goalObj.transform);
+        goalPlat.transform.localPosition = Vector3.zero;
+        goalPlat.transform.localScale = new Vector3(5.0f, 0.25f, 5.0f);
+        if (goalMat != null) goalPlat.GetComponent<Renderer>().sharedMaterial = goalMat;
+        goalPlat.AddComponent<GoalController>();
+
+        SerializedObject soHelix = new SerializedObject(helixCtrl);
+        soHelix.FindProperty("topTransform").objectReferenceValue = topObj.transform;
+        soHelix.FindProperty("goalTransform").objectReferenceValue = goalObj.transform;
+        soHelix.FindProperty("helixLevelPrefab").objectReferenceValue = levelPrefab;
+
+        SerializedProperty stagesProp = soHelix.FindProperty("allStages");
+        stagesProp.ClearArray();
+        if (stage0 != null) { stagesProp.InsertArrayElementAtIndex(0); stagesProp.GetArrayElementAtIndex(0).objectReferenceValue = stage0; }
+        if (stage1 != null) { stagesProp.InsertArrayElementAtIndex(1); stagesProp.GetArrayElementAtIndex(1).objectReferenceValue = stage1; }
+        if (stage2 != null) { stagesProp.InsertArrayElementAtIndex(2); stagesProp.GetArrayElementAtIndex(2).objectReferenceValue = stage2; }
+        soHelix.ApplyModifiedProperties();
+
         GameObject ballObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         ballObj.name = "PlayerBall";
         ballObj.tag = "Player";
-        ballObj.transform.position = new Vector3(0, 3.5f, 1.7f); // Sobre el primer sector
+        ballObj.transform.position = new Vector3(0, 3.5f, 1.7f);
         ballObj.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
-
         if (ballMat != null) ballObj.GetComponent<Renderer>().sharedMaterial = ballMat;
-
         PlayerBallController ballCtrl = ballObj.AddComponent<PlayerBallController>();
 
-        // 5. Cámara Principal con Restricciones Solicitadas
         GameObject camObj = new GameObject("Main Camera");
         Camera cam = camObj.AddComponent<Camera>();
         cam.clearFlags = CameraClearFlags.SolidColor;
         cam.backgroundColor = new Color(0.12f, 0.16f, 0.24f);
         camObj.tag = "MainCamera";
-
-        // Posición inicial: fija en Z respecto a la bola, altura estable en Y
         camObj.transform.position = new Vector3(0, 3.5f, -6.5f);
         camObj.transform.rotation = Quaternion.Euler(20f, 0f, 0f);
 
@@ -239,10 +342,8 @@ public static class HelixGameSetup
         soCam.FindProperty("pitchAngle").floatValue = 20.0f;
         soCam.ApplyModifiedProperties();
 
-        // 6. Event System
         CreateEventSystem();
 
-        // 7. Canvas y HUD de Partida
         GameObject canvasObj = new GameObject("GameCanvas");
         Canvas canvas = canvasObj.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -254,108 +355,82 @@ public static class HelixGameSetup
 
         GameHUDManager hudMgr = canvasObj.AddComponent<GameHUDManager>();
 
-        // HUD Panel
         GameObject hudPanel = CreateUIPanel(canvasObj.transform, "HUDPanel", new Color(0, 0, 0, 0));
 
-        // Texto de Coordenadas 3D (Criterio de Verificación de Movimiento en X, Y, Z)
         Text coordsText = CreateUIText(hudPanel.transform, "TelemetryCoordinatesText",
-                                     "Posición 3D:\nX: +0.00  |  Y: +0.00  |  Z: +0.00\nVelocidad: (Vx: 0.0, Vy: 0.0, Vz: 0.0)",
+                                     "Posicion 3D:\nX: +0.00  |  Y: +0.00  |  Z: +0.00",
                                      24, FontStyle.Bold, Color.white,
                                      new Vector2(-240, 840), new Vector2(550, 140), TextAnchor.UpperLeft);
 
-        // Texto de Puntos
         Text scoreText = CreateUIText(hudPanel.transform, "ScoreText", "Puntos: 0", 34, FontStyle.Bold,
                                     new Color(1f, 0.85f, 0.2f), new Vector2(250, 840), new Vector2(350, 80), TextAnchor.UpperRight);
 
-        // Botón Pausa
         GameObject pauseBtn = CreateUIButton(hudPanel.transform, "PauseButton", "PAUSA", 24,
                                              new Color(0.2f, 0.25f, 0.35f, 0.9f), new Vector2(440, 840), new Vector2(140, 70));
         UnityEditor.Events.UnityEventTools.AddPersistentListener(pauseBtn.GetComponent<Button>().onClick, hudMgr.TogglePause);
 
-        // Controles Táctiles Móviles en Pantalla (Panel Inferior)
         GameObject controlsPanel = CreateUIPanel(hudPanel.transform, "MobileControlsPanel", new Color(0, 0, 0, 0));
-        
-        // Botones de Movimiento en X (Izquierda / Derecha)
-        GameObject btnLeft = CreateUIButton(controlsPanel.transform, "BtnLeft", "◄ X-", 32,
-                                           new Color(0.2f, 0.4f, 0.7f, 0.75f), new Vector2(-360, -750), new Vector2(150, 110));
-        UnityEditor.Events.UnityEventTools.AddPersistentListener(btnLeft.GetComponent<Button>().onClick, hudMgr.OnTouchLeft);
 
-        GameObject btnRight = CreateUIButton(controlsPanel.transform, "BtnRight", "X+ ►", 32,
-                                            new Color(0.2f, 0.4f, 0.7f, 0.75f), new Vector2(-190, -750), new Vector2(150, 110));
-        UnityEditor.Events.UnityEventTools.AddPersistentListener(btnRight.GetComponent<Button>().onClick, hudMgr.OnTouchRight);
+        GameObject leftBtn = CreateUIButton(controlsPanel.transform, "BtnLeftX", "<", 48,
+                                            new Color(0.2f, 0.5f, 0.8f, 0.65f), new Vector2(-420, -780), new Vector2(160, 140));
+        UnityEditor.Events.UnityEventTools.AddPersistentListener(leftBtn.GetComponent<Button>().onClick, hudMgr.OnTouchLeft);
 
-        // Botones de Desplazamiento en Z (Profundidad Adelante / Atrás)
-        GameObject btnFwd = CreateUIButton(controlsPanel.transform, "BtnForward", "▲ Z+", 30,
-                                          new Color(0.15f, 0.6f, 0.45f, 0.75f), new Vector2(190, -700), new Vector2(140, 100));
-        UnityEditor.Events.UnityEventTools.AddPersistentListener(btnFwd.GetComponent<Button>().onClick, hudMgr.OnTouchForward);
+        GameObject rightBtn = CreateUIButton(controlsPanel.transform, "BtnRightX", ">", 48,
+                                             new Color(0.2f, 0.5f, 0.8f, 0.65f), new Vector2(-240, -780), new Vector2(160, 140));
+        UnityEditor.Events.UnityEventTools.AddPersistentListener(rightBtn.GetComponent<Button>().onClick, hudMgr.OnTouchRight);
 
-        GameObject btnBack = CreateUIButton(controlsPanel.transform, "BtnBackward", "▼ Z-", 30,
-                                           new Color(0.15f, 0.6f, 0.45f, 0.75f), new Vector2(190, -820), new Vector2(140, 100));
-        UnityEditor.Events.UnityEventTools.AddPersistentListener(btnBack.GetComponent<Button>().onClick, hudMgr.OnTouchBackward);
+        GameObject jumpBtn = CreateUIButton(controlsPanel.transform, "BtnManualJump", "SALTO", 26,
+                                            new Color(0.85f, 0.5f, 0.1f, 0.75f), new Vector2(0, -780), new Vector2(200, 140));
+        UnityEditor.Events.UnityEventTools.AddPersistentListener(jumpBtn.GetComponent<Button>().onClick, hudMgr.OnTouchJump);
 
-        // Botón Salto (Eje Y)
-        GameObject btnJump = CreateUIButton(controlsPanel.transform, "BtnJump", "SALTO (Y)", 30,
-                                           new Color(0.85f, 0.55f, 0.1f, 0.85f), new Vector2(370, -750), new Vector2(170, 110));
-        UnityEditor.Events.UnityEventTools.AddPersistentListener(btnJump.GetComponent<Button>().onClick, hudMgr.OnTouchJump);
+        GameObject rotLBtn = CreateUIButton(controlsPanel.transform, "BtnRotateTowerLeft", "<<", 36,
+                                            new Color(0.3f, 0.35f, 0.45f, 0.65f), new Vector2(240, -780), new Vector2(140, 140));
+        UnityEditor.Events.UnityEventTools.AddPersistentListener(rotLBtn.GetComponent<Button>().onClick, hudMgr.OnRotateTowerLeft);
 
-        // Panel de Pausa (Inicialmente inactivo)
-        GameObject pausePanel = CreateUIPanel(canvasObj.transform, "PausePanel", new Color(0.08f, 0.12f, 0.20f, 0.95f));
-        pausePanel.SetActive(false);
+        GameObject rotRBtn = CreateUIButton(controlsPanel.transform, "BtnRotateTowerRight", ">>", 36,
+                                            new Color(0.3f, 0.35f, 0.45f, 0.65f), new Vector2(400, -780), new Vector2(140, 140));
+        UnityEditor.Events.UnityEventTools.AddPersistentListener(rotRBtn.GetComponent<Button>().onClick, hudMgr.OnRotateTowerRight);
 
-        CreateUIText(pausePanel.transform, "PauseTitle", "JUEGO PAUSADO", 60, FontStyle.Bold, Color.white,
-                     new Vector2(0, 350), new Vector2(800, 120));
-
-        GameObject resumeBtn = CreateUIButton(pausePanel.transform, "ResumeBtn", "CONTINUAR", 34,
-                                              new Color(0.15f, 0.55f, 0.95f), new Vector2(0, 120), new Vector2(450, 100));
-        UnityEditor.Events.UnityEventTools.AddPersistentListener(resumeBtn.GetComponent<Button>().onClick, hudMgr.ResumeGame);
-
-        GameObject restartBtn = CreateUIButton(pausePanel.transform, "RestartBtn", "REINICIAR ESCENA", 32,
-                                               new Color(0.25f, 0.35f, 0.50f), new Vector2(0, -10), new Vector2(450, 100));
-        UnityEditor.Events.UnityEventTools.AddPersistentListener(restartBtn.GetComponent<Button>().onClick, hudMgr.RestartLevel);
-
-        GameObject returnMenuBtn = CreateUIButton(pausePanel.transform, "ReturnMenuBtn", "MENÚ PRINCIPAL", 30,
-                                                  new Color(0.70f, 0.20f, 0.25f), new Vector2(0, -140), new Vector2(450, 90));
-        UnityEditor.Events.UnityEventTools.AddPersistentListener(returnMenuBtn.GetComponent<Button>().onClick, hudMgr.ReturnToMainMenu);
-
-        // Panel de Game Over
-        GameObject gameOverPanel = CreateUIPanel(canvasObj.transform, "GameOverPanel", new Color(0.25f, 0.05f, 0.05f, 0.95f));
-        gameOverPanel.SetActive(false);
-        CreateUIText(gameOverPanel.transform, "OverTitle", "¡FIN DEL JUEGO!", 60, FontStyle.Bold, new Color(1f, 0.3f, 0.3f),
-                     new Vector2(0, 250), new Vector2(800, 120));
-        GameObject retryBtn = CreateUIButton(gameOverPanel.transform, "RetryBtn", "REINTENTAR", 34,
-                                             new Color(0.85f, 0.25f, 0.25f), new Vector2(0, 50), new Vector2(450, 100));
-        UnityEditor.Events.UnityEventTools.AddPersistentListener(retryBtn.GetComponent<Button>().onClick, hudMgr.RestartLevel);
-        GameObject overMenuBtn = CreateUIButton(gameOverPanel.transform, "OverMenuBtn", "MENÚ PRINCIPAL", 30,
-                                                new Color(0.3f, 0.3f, 0.4f), new Vector2(0, -80), new Vector2(450, 90));
-        UnityEditor.Events.UnityEventTools.AddPersistentListener(overMenuBtn.GetComponent<Button>().onClick, hudMgr.ReturnToMainMenu);
-
-        // Panel de Victoria
-        GameObject victoryPanel = CreateUIPanel(canvasObj.transform, "VictoryPanel", new Color(0.05f, 0.25f, 0.12f, 0.95f));
+        GameObject victoryPanel = CreateUIPanel(canvasObj.transform, "VictoryPanel", new Color(0.05f, 0.18f, 0.10f, 0.95f));
         victoryPanel.SetActive(false);
-        CreateUIText(victoryPanel.transform, "VicTitle", "¡NIVEL COMPLETADO!", 60, FontStyle.Bold, new Color(0.3f, 1f, 0.5f),
-                     new Vector2(0, 250), new Vector2(800, 120));
-        GameObject vicPlayAgainBtn = CreateUIButton(victoryPanel.transform, "VicPlayAgainBtn", "JUGAR DE NUEVO", 34,
-                                                    new Color(0.1f, 0.7f, 0.35f), new Vector2(0, 50), new Vector2(450, 100));
-        UnityEditor.Events.UnityEventTools.AddPersistentListener(vicPlayAgainBtn.GetComponent<Button>().onClick, hudMgr.RestartLevel);
-        GameObject vicMenuBtn = CreateUIButton(victoryPanel.transform, "VicMenuBtn", "MENÚ PRINCIPAL", 30,
-                                               new Color(0.3f, 0.3f, 0.4f), new Vector2(0, -80), new Vector2(450, 90));
-        UnityEditor.Events.UnityEventTools.AddPersistentListener(vicMenuBtn.GetComponent<Button>().onClick, hudMgr.ReturnToMainMenu);
+        CreateUIText(victoryPanel.transform, "VicTitle", "NIVEL COMPLETADO!", 56, FontStyle.Bold,
+                     new Color(0.3f, 0.95f, 0.4f), new Vector2(0, 200), new Vector2(800, 120));
 
-        // Enlazar referencias de GameHUDManager mediante SerializedObject
+        GameObject nextLvlBtn = CreateUIButton(victoryPanel.transform, "NextLevelButton", "SIGUIENTE NIVEL", 34,
+                                               new Color(0.15f, 0.75f, 0.35f), new Vector2(0, -50), new Vector2(460, 110));
+        UnityEditor.Events.UnityEventTools.AddPersistentListener(nextLvlBtn.GetComponent<Button>().onClick, hudMgr.RestartLevel);
+
+        GameObject vMenuBtn = CreateUIButton(victoryPanel.transform, "VictoryMenuButton", "MENU PRINCIPAL", 28,
+                                             new Color(0.25f, 0.35f, 0.45f), new Vector2(0, -180), new Vector2(420, 90));
+        UnityEditor.Events.UnityEventTools.AddPersistentListener(vMenuBtn.GetComponent<Button>().onClick, hudMgr.ReturnToMainMenu);
+
+        GameObject gameOverPanel = CreateUIPanel(canvasObj.transform, "GameOverPanel", new Color(0.18f, 0.05f, 0.05f, 0.95f));
+        gameOverPanel.SetActive(false);
+        CreateUIText(gameOverPanel.transform, "GOTitle", "FIN DE LA PARTIDA", 56, FontStyle.Bold,
+                     new Color(0.95f, 0.25f, 0.25f), new Vector2(0, 200), new Vector2(800, 120));
+
+        GameObject retryBtn = CreateUIButton(gameOverPanel.transform, "RetryButton", "REINTENTAR", 34,
+                                             new Color(0.85f, 0.2f, 0.25f), new Vector2(0, -50), new Vector2(440, 110));
+        UnityEditor.Events.UnityEventTools.AddPersistentListener(retryBtn.GetComponent<Button>().onClick, hudMgr.RestartLevel);
+
+        GameObject goMenuBtn = CreateUIButton(gameOverPanel.transform, "GOMenuButton", "MENU PRINCIPAL", 28,
+                                              new Color(0.25f, 0.35f, 0.45f), new Vector2(0, -180), new Vector2(420, 90));
+        UnityEditor.Events.UnityEventTools.AddPersistentListener(goMenuBtn.GetComponent<Button>().onClick, hudMgr.ReturnToMainMenu);
+
         SerializedObject soHud = new SerializedObject(hudMgr);
         soHud.FindProperty("player").objectReferenceValue = ballCtrl;
         soHud.FindProperty("tower").objectReferenceValue = towerCtrl;
-        soHud.FindProperty("hudPanel").objectReferenceValue = hudPanel;
-        soHud.FindProperty("pausePanel").objectReferenceValue = pausePanel;
-        soHud.FindProperty("gameOverPanel").objectReferenceValue = gameOverPanel;
-        soHud.FindProperty("victoryPanel").objectReferenceValue = victoryPanel;
         soHud.FindProperty("coordinatesText").objectReferenceValue = coordsText;
         soHud.FindProperty("scoreText").objectReferenceValue = scoreText;
+        soHud.FindProperty("victoryPanel").objectReferenceValue = victoryPanel;
+        soHud.FindProperty("gameOverPanel").objectReferenceValue = gameOverPanel;
+        soHud.FindProperty("hudPanel").objectReferenceValue = hudPanel;
         soHud.ApplyModifiedProperties();
 
         EditorSceneManager.SaveScene(scene, GameScenePath);
-        Debug.Log("Escena guardada: " + GameScenePath);
     }
+
+
 
     private static void ConfigureBuildSettings()
     {
@@ -363,14 +438,12 @@ public static class HelixGameSetup
         scenes[0] = new EditorBuildSettingsScene(MainMenuScenePath, true);
         scenes[1] = new EditorBuildSettingsScene(GameScenePath, true);
         EditorBuildSettings.scenes = scenes;
-        Debug.Log("Build Settings configurado: [0] MainMenuScene, [1] GameScene");
     }
 
     private static void CreateEventSystem()
     {
         GameObject esObj = new GameObject("EventSystem");
         esObj.AddComponent<EventSystem>();
-        // Usar InputSystemUIInputModule para permitir clics, toques y navegación en el nuevo Input System
         esObj.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
     }
 
@@ -429,7 +502,6 @@ public static class HelixGameSetup
         cb.pressedColor = btnColor * 0.85f;
         btn.colors = cb;
 
-        // Texto del botón
         CreateUIText(btnObj.transform, "Text", textContent, fontSize, FontStyle.Bold, Color.white,
                      Vector2.zero, sizeDelta, TextAnchor.MiddleCenter);
 

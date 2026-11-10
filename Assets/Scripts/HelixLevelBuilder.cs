@@ -31,7 +31,7 @@ public class HelixLevelBuilder : MonoBehaviour
 
         int level = GameManager.singleton != null ? GameManager.singleton.currentLevel : 1;
         int activeRings = Mathf.Clamp(numberOfRings + (level - 1), 6, 20);
-        float totalHeight = activeRings * distanceBetweenRings + 10.0f;
+        float totalHeight = Mathf.Max(towerHeight, activeRings * distanceBetweenRings + 10.0f);
 
         GameObject cylinder = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         cylinder.name = "CentralCylinder";
