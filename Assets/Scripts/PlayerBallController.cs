@@ -8,10 +8,18 @@ public class PlayerBallController : MonoBehaviour
     [SerializeField] private float moveSpeedX = 5.0f;
     [SerializeField] private float moveSpeedZ = 5.0f;
     [SerializeField] private float bounceForceY = 6.5f;
-    [SerializeField] private float manualJumpForce = 7.0f;
+    [SerializeField] private manualJumpForceSetting manualJumpForce = new manualJumpForceSetting(7.0f);
     [SerializeField] private bool clampHorizontalMovement = true;
     [SerializeField] private float maxDistanceFromCenter = 2.5f;
     [SerializeField] private GameObject bounceParticlePrefab;
+
+    [System.Serializable]
+    private struct manualJumpForceSetting
+    {
+        public float value;
+        public manualJumpForceSetting(float v) { value = v; }
+        public static implicit operator float(manualJumpForceSetting s) => s.value;
+    }
 
     private Rigidbody rb;
     private SphereCollider sphereCollider;
@@ -150,6 +158,32 @@ public class PlayerBallController : MonoBehaviour
                     GameHUDManager.Instance?.AddScore(1);
                 }
             }
+        }
+    }
+
+    public void ApplyVisualCustomization(Color ballColor, Material customMat = null)
+    {
+        Renderer r = GetComponent<Renderer>();
+        if (r != null)
+        {
+            if (customMat != null) r.material = customMat;
+            r.material.color = ballColor;
+            if (r.material.HasProperty("_BaseColor"))
+            {
+                r.material.SetColor("_BaseColor", ballColor);
+            }
+            if (r.material.HasProperty("_EmissionColor"))
+            {
+                r.material.EnableKeyword("_EMISSION");
+                r.material.SetColor("_EmissionColor", ballColor * 0.25f);
+            }
+        }
+
+        TrailRenderer trail = GetComponent<TrailRenderer>();
+        if (trail != null)
+        {
+            trail.startColor = ballColor;
+            trail.endColor = new Color(ballColor.r, ballColor.g, ballColor.b, 0f);
         }
     }
 

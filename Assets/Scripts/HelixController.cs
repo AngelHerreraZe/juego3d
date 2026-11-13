@@ -66,14 +66,23 @@ public class HelixController : MonoBehaviour
             Camera.main.backgroundColor = stage.stageBackgroundColor;
         }
 
+        RenderSettings.ambientLight = stage.stageBackgroundColor;
+        RenderSettings.ambientSkyColor = stage.stageBackgroundColor;
+
+        Light dirLight = RenderSettings.sun;
+        if (dirLight == null)
+        {
+            dirLight = FindAnyObjectByType<Light>();
+        }
+        if (dirLight != null && dirLight.type == LightType.Directional)
+        {
+            dirLight.color = Color.Lerp(Color.white, stage.stageBackgroundColor, 0.2f);
+        }
+
         PlayerBallController ball = FindAnyObjectByType<PlayerBallController>();
         if (ball != null)
         {
-            Renderer ballRend = ball.GetComponent<Renderer>();
-            if (ballRend != null)
-            {
-                ballRend.material.color = stage.stageBallColor;
-            }
+            ball.ApplyVisualCustomization(stage.stageBallColor);
         }
 
         transform.localEulerAngles = startRotation;
@@ -120,6 +129,10 @@ public class HelixController : MonoBehaviour
                     if (rend != null)
                     {
                         rend.material.color = stage.stageLevelPartColor;
+                        if (rend.material.HasProperty("_BaseColor"))
+                        {
+                            rend.material.SetColor("_BaseColor", stage.stageLevelPartColor);
+                        }
                     }
                     leftParts.Add(t.gameObject);
                 }

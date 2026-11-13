@@ -8,6 +8,10 @@ public class DeathPart : MonoBehaviour
         if (rend != null)
         {
             rend.material.color = Color.red;
+            if (rend.material.HasProperty("_BaseColor"))
+            {
+                rend.material.SetColor("_BaseColor", Color.red);
+            }
         }
     }
 
