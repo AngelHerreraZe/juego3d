@@ -399,6 +399,67 @@ public static class HelixGameSetup
                                              new Color(0.2f, 0.25f, 0.35f, 0.9f), new Vector2(440, 840), new Vector2(140, 70));
         UnityEditor.Events.UnityEventTools.AddPersistentListener(pauseBtn.GetComponent<Button>().onClick, hudMgr.TogglePause);
 
+        GameObject sliderObj = new GameObject("LevelProgressSlider");
+        sliderObj.transform.SetParent(hudPanel.transform, false);
+        RectTransform rtSlider = sliderObj.AddComponent<RectTransform>();
+        rtSlider.anchoredPosition = new Vector2(0, 720);
+        rtSlider.sizeDelta = new Vector2(360, 32);
+
+        GameObject bgObj = new GameObject("Background");
+        bgObj.transform.SetParent(sliderObj.transform, false);
+        RectTransform rtBg = bgObj.AddComponent<RectTransform>();
+        rtBg.anchorMin = Vector2.zero;
+        rtBg.anchorMax = Vector2.one;
+        rtBg.sizeDelta = Vector2.zero;
+        Image bgImg = bgObj.AddComponent<Image>();
+        bgImg.color = new Color(0.15f, 0.20f, 0.30f, 0.85f);
+
+        GameObject fillAreaObj = new GameObject("Fill Area");
+        fillAreaObj.transform.SetParent(sliderObj.transform, false);
+        RectTransform rtFillArea = fillAreaObj.AddComponent<RectTransform>();
+        rtFillArea.anchorMin = Vector2.zero;
+        rtFillArea.anchorMax = Vector2.one;
+        rtFillArea.sizeDelta = Vector2.zero;
+
+        GameObject fillObj = new GameObject("Fill");
+        fillObj.transform.SetParent(fillAreaObj.transform, false);
+        RectTransform rtFill = fillObj.AddComponent<RectTransform>();
+        rtFill.anchorMin = Vector2.zero;
+        rtFill.anchorMax = Vector2.one;
+        rtFill.sizeDelta = Vector2.zero;
+        Image fillImg = fillObj.AddComponent<Image>();
+        fillImg.color = new Color(0.96f, 0.65f, 0.12f, 1.0f);
+
+        Slider sliderComp = sliderObj.AddComponent<Slider>();
+        sliderComp.fillRect = rtFill;
+        sliderComp.targetGraphic = fillImg;
+        sliderComp.direction = Slider.Direction.LeftToRight;
+        sliderComp.minValue = 0f;
+        sliderComp.maxValue = 1f;
+        sliderComp.value = 0f;
+
+        GameObject actualBadge = new GameObject("ActualLevelBadge");
+        actualBadge.transform.SetParent(hudPanel.transform, false);
+        RectTransform rtAct = actualBadge.AddComponent<RectTransform>();
+        rtAct.anchoredPosition = new Vector2(-220, 720);
+        rtAct.sizeDelta = new Vector2(50, 50);
+        Image actImg = actualBadge.AddComponent<Image>();
+        actImg.color = new Color(0.15f, 0.55f, 0.95f, 1.0f);
+
+        Text actualLevelText = CreateUIText(actualBadge.transform, "ActualLevelText", "1", 26, FontStyle.Bold, Color.white,
+                                            Vector2.zero, new Vector2(50, 50), TextAnchor.MiddleCenter);
+
+        GameObject nextBadge = new GameObject("NextLevelBadge");
+        nextBadge.transform.SetParent(hudPanel.transform, false);
+        RectTransform rtNext = nextBadge.AddComponent<RectTransform>();
+        rtNext.anchoredPosition = new Vector2(220, 720);
+        rtNext.sizeDelta = new Vector2(50, 50);
+        Image nextImg = nextBadge.AddComponent<Image>();
+        nextImg.color = new Color(0.20f, 0.25f, 0.35f, 1.0f);
+
+        Text nextLevelText = CreateUIText(nextBadge.transform, "NextLevelText", "2", 26, FontStyle.Bold, Color.white,
+                                          Vector2.zero, new Vector2(50, 50), TextAnchor.MiddleCenter);
+
         GameObject controlsPanel = CreateUIPanel(hudPanel.transform, "MobileControlsPanel", new Color(0, 0, 0, 0));
 
         GameObject leftBtn = CreateUIButton(controlsPanel.transform, "BtnLeftX", "<", 48,
@@ -452,6 +513,12 @@ public static class HelixGameSetup
         soHud.FindProperty("tower").objectReferenceValue = towerCtrl;
         soHud.FindProperty("coordinatesText").objectReferenceValue = coordsText;
         soHud.FindProperty("scoreText").objectReferenceValue = scoreText;
+        soHud.FindProperty("slider").objectReferenceValue = sliderComp;
+        soHud.FindProperty("actualLevelText").objectReferenceValue = actualLevelText;
+        soHud.FindProperty("nextLevelText").objectReferenceValue = nextLevelText;
+        soHud.FindProperty("topTransform").objectReferenceValue = topObj.transform;
+        soHud.FindProperty("goalTransform").objectReferenceValue = goalObj.transform;
+        soHud.FindProperty("ball").objectReferenceValue = ballObj.transform;
         soHud.FindProperty("victoryPanel").objectReferenceValue = victoryPanel;
         soHud.FindProperty("gameOverPanel").objectReferenceValue = gameOverPanel;
         soHud.FindProperty("hudPanel").objectReferenceValue = hudPanel;

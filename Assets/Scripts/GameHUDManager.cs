@@ -17,6 +17,13 @@ public class GameHUDManager : MonoBehaviour
     [SerializeField] private Text scoreText;
     [SerializeField] private string mainMenuSceneName = "MainMenuScene";
 
+    [SerializeField] private Slider slider;
+    [SerializeField] private Text actualLevelText;
+    [SerializeField] private Text nextLevelText;
+    [SerializeField] private Transform topTransform;
+    [SerializeField] private Transform goalTransform;
+    [SerializeField] private Transform ball;
+
     private int score = 0;
     private bool isPaused = false;
 
@@ -33,6 +40,20 @@ public class GameHUDManager : MonoBehaviour
 
         if (player == null) player = FindAnyObjectByType<PlayerBallController>();
         if (tower == null) tower = FindAnyObjectByType<HelixTowerController>();
+
+        if (topTransform == null || goalTransform == null)
+        {
+            HelixController helix = FindAnyObjectByType<HelixController>();
+            if (helix != null)
+            {
+                if (topTransform == null) topTransform = helix.topTransform;
+                if (goalTransform == null) goalTransform = helix.goalTransform;
+            }
+        }
+        if (ball == null && player != null)
+        {
+            ball = player.transform;
+        }
 
         if (hudPanel != null) hudPanel.SetActive(true);
         if (pausePanel != null) pausePanel.SetActive(false);
@@ -54,6 +75,7 @@ public class GameHUDManager : MonoBehaviour
         }
 
         UpdateScoreText();
+        ChangeSliderLevelProgress();
 
         bool pausePressed = false;
         if (Keyboard.current != null)
@@ -72,6 +94,26 @@ public class GameHUDManager : MonoBehaviour
         if (pausePressed)
         {
             TogglePause();
+        }
+    }
+
+    public void ChangeSliderLevelProgress()
+    {
+        if (actualLevelText != null && GameManager.singleton != null)
+        {
+            actualLevelText.text = "" + GameManager.singleton.currentLevel;
+        }
+        if (nextLevelText != null && GameManager.singleton != null)
+        {
+            nextLevelText.text = "" + (GameManager.singleton.currentLevel + 1);
+        }
+
+        if (topTransform != null && goalTransform != null && ball != null && slider != null)
+        {
+            float totalDistance = topTransform.position.y - goalTransform.position.y;
+            float distanceLeft = ball.position.y - goalTransform.position.y;
+            float value = (totalDistance - distanceLeft) / totalDistance;
+            slider.value = Mathf.Lerp(slider.value, value, 5f * Time.deltaTime);
         }
     }
 

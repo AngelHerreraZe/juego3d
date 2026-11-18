@@ -13,6 +13,12 @@ public class PlayerBallController : MonoBehaviour
     [SerializeField] private float maxDistanceFromCenter = 2.5f;
     [SerializeField] private GameObject bounceParticlePrefab;
 
+    [HideInInspector] public int perfectPass;
+    public float superSpeed = 10f;
+    private bool isSuperSpeedActive;
+    public int perfectPassCount = 3;
+    private float superSpeedTimer = 0f;
+
     [System.Serializable]
     private struct manualJumpForceSetting
     {
@@ -92,6 +98,24 @@ public class PlayerBallController : MonoBehaviour
 
     void Update()
     {
+        if (perfectPass >= perfectPassCount && !isSuperSpeedActive)
+        {
+            isSuperSpeedActive = true;
+            superSpeedTimer = 0f;
+            rb.AddForce(Vector3.down * superSpeed, ForceMode.Impulse);
+        }
+
+        if (isSuperSpeedActive)
+        {
+            superSpeedTimer += Time.deltaTime;
+            if (superSpeedTimer >= 3.0f)
+            {
+                isSuperSpeedActive = false;
+                superSpeedTimer = 0f;
+                perfectPass = 0;
+            }
+        }
+
         float horizontal = 0f;
         float vertical = 0f;
 
@@ -153,12 +177,29 @@ public class PlayerBallController : MonoBehaviour
 
     private void OnCollisionEnter(Collision collision)
     {
-        DeathPart deathPart = collision.transform.GetComponent<DeathPart>();
-        if (deathPart != null)
+        if (isSuperSpeedActive)
         {
-            deathPart.HitDeathPart();
-            GameHUDManager.Instance?.TriggerGameOver();
-            return;
+            if (collision.transform.GetComponent<GoalController>() == null && !collision.gameObject.CompareTag("Goal"))
+            {
+                if (collision.transform.parent != null)
+                {
+                    Destroy(collision.transform.parent.gameObject, 0.2f);
+                }
+            }
+            perfectPass = 0;
+            isSuperSpeedActive = false;
+            superSpeedTimer = 0f;
+        }
+        else
+        {
+            perfectPass = 0;
+            DeathPart deathPart = collision.transform.GetComponent<DeathPart>();
+            if (deathPart != null)
+            {
+                deathPart.HitDeathPart();
+                GameHUDManager.Instance?.TriggerGameOver();
+                return;
+            }
         }
 
         ContactPoint contact = collision.contacts[0];
@@ -239,6 +280,9 @@ public class PlayerBallController : MonoBehaviour
         {
             rb.linearVelocity = Vector3.zero;
         }
+        perfectPass = 0;
+        isSuperSpeedActive = false;
+        superSpeedTimer = 0f;
     }
 
     public void SetInputX(float val) => inputX = val;
