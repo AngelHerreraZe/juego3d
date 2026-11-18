@@ -78,7 +78,8 @@ public class GameManager : MonoBehaviour
         HelixController helix = FindAnyObjectByType<HelixController>();
         if (helix != null && helix.allStages.Count > 0)
         {
-            helix.LoadStage(currentLevel - 1);
+            int stageIndex = (currentLevel - 1) % helix.allStages.Count;
+            helix.LoadStage(stageIndex);
             PlayerBallController ball = FindAnyObjectByType<PlayerBallController>();
             if (ball != null)
             {
@@ -97,7 +98,8 @@ public class GameManager : MonoBehaviour
         HelixController helix = FindAnyObjectByType<HelixController>();
         if (helix != null && helix.allStages.Count > 0)
         {
-            helix.LoadStage(currentLevel - 1);
+            int stageIndex = (currentLevel - 1) % helix.allStages.Count;
+            helix.LoadStage(stageIndex);
             PlayerBallController ball = FindAnyObjectByType<PlayerBallController>();
             if (ball != null)
             {

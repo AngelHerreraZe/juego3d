@@ -257,12 +257,20 @@ public static class HelixGameSetup
     {
         var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
-        GameObject lightObj = new GameObject("Directional Light");
-        Light light = lightObj.AddComponent<Light>();
-        light.type = LightType.Directional;
-        light.color = new Color(1.0f, 0.98f, 0.95f);
-        light.intensity = 1.2f;
-        lightObj.transform.rotation = Quaternion.Euler(50, -30, 0);
+        // Iluminacion dual segun Cap. 9 de Lucas Canary (Luz principal y luz de relleno para blancos puros)
+        GameObject lightObj1 = new GameObject("Directional Light 1");
+        Light light1 = lightObj1.AddComponent<Light>();
+        light1.type = LightType.Directional;
+        light1.color = new Color(1.0f, 0.96f, 0.90f);
+        light1.intensity = 0.8f;
+        lightObj1.transform.rotation = Quaternion.Euler(35f, 0f, 0f);
+
+        GameObject lightObj2 = new GameObject("Directional Light 2");
+        Light light2 = lightObj2.AddComponent<Light>();
+        light2.type = LightType.Directional;
+        light2.color = new Color(0.92f, 0.96f, 1.0f);
+        light2.intensity = 0.6f;
+        lightObj2.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
 
         Material ballMat = AssetDatabase.LoadAssetAtPath<Material>($"{MaterialsPath}/BallMaterial.mat");
         Material towerMat = AssetDatabase.LoadAssetAtPath<Material>($"{MaterialsPath}/TowerMaterial.mat");
@@ -324,13 +332,33 @@ public static class HelixGameSetup
         if (ballMat != null) ballObj.GetComponent<Renderer>().sharedMaterial = ballMat;
         PlayerBallController ballCtrl = ballObj.AddComponent<PlayerBallController>();
 
+        // Efecto Trail Renderer segun Cap. 10 de Lucas Canary
+        TrailRenderer trail = ballObj.AddComponent<TrailRenderer>();
+        trail.time = 0.28f;
+        trail.minVertexDistance = 0.15f;
+        AnimationCurve curve = new AnimationCurve();
+        curve.AddKey(0f, 0.45f);
+        curve.AddKey(0.5f, 0.20f);
+        curve.AddKey(1f, 0.0f);
+        trail.widthCurve = curve;
+
+        Gradient gradient = new Gradient();
+        gradient.SetKeys(
+            new GradientColorKey[] { new GradientColorKey(new Color(0.15f, 0.45f, 0.95f), 0.0f), new GradientColorKey(new Color(0.15f, 0.45f, 0.95f), 1.0f) },
+            new GradientAlphaKey[] { new GradientAlphaKey(0.9f, 0.0f), new GradientAlphaKey(0.0f, 1.0f) }
+        );
+        trail.colorGradient = gradient;
+
+        Shader trailShader = Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? Shader.Find("Sprites/Default");
+        if (trailShader != null) trail.material = new Material(trailShader);
+
         GameObject camObj = new GameObject("Main Camera");
         Camera cam = camObj.AddComponent<Camera>();
         cam.clearFlags = CameraClearFlags.SolidColor;
         cam.backgroundColor = new Color(0.12f, 0.16f, 0.24f);
         camObj.tag = "MainCamera";
         camObj.transform.position = new Vector3(0, 3.5f, -6.5f);
-        camObj.transform.rotation = Quaternion.Euler(20f, 0f, 0f);
+        camObj.transform.rotation = Quaternion.Euler(20f, -0.5f, 8f);
 
         CameraFollow3D camFollow = camObj.AddComponent<CameraFollow3D>();
         SerializedObject soCam = new SerializedObject(camFollow);
@@ -340,6 +368,8 @@ public static class HelixGameSetup
         soCam.FindProperty("fixedHeightY").floatValue = 3.5f;
         soCam.FindProperty("smoothTimeX").floatValue = 0.12f;
         soCam.FindProperty("pitchAngle").floatValue = 20.0f;
+        soCam.FindProperty("yawAngle").floatValue = -0.5f;
+        soCam.FindProperty("rollAngle").floatValue = 8.0f;
         soCam.ApplyModifiedProperties();
 
         CreateEventSystem();
@@ -398,7 +428,7 @@ public static class HelixGameSetup
 
         GameObject nextLvlBtn = CreateUIButton(victoryPanel.transform, "NextLevelButton", "SIGUIENTE NIVEL", 34,
                                                new Color(0.15f, 0.75f, 0.35f), new Vector2(0, -50), new Vector2(460, 110));
-        UnityEditor.Events.UnityEventTools.AddPersistentListener(nextLvlBtn.GetComponent<Button>().onClick, hudMgr.RestartLevel);
+        UnityEditor.Events.UnityEventTools.AddPersistentListener(nextLvlBtn.GetComponent<Button>().onClick, hudMgr.NextLevel);
 
         GameObject vMenuBtn = CreateUIButton(victoryPanel.transform, "VictoryMenuButton", "MENU PRINCIPAL", 28,
                                              new Color(0.25f, 0.35f, 0.45f), new Vector2(0, -180), new Vector2(420, 90));

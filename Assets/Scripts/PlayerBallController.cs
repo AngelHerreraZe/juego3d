@@ -7,7 +7,7 @@ public class PlayerBallController : MonoBehaviour
 {
     [SerializeField] private float moveSpeedX = 5.0f;
     [SerializeField] private float moveSpeedZ = 5.0f;
-    [SerializeField] private float bounceForceY = 6.5f;
+    [SerializeField] private float bounceForceY = 5.5f;
     [SerializeField] private manualJumpForceSetting manualJumpForce = new manualJumpForceSetting(7.0f);
     [SerializeField] private bool clampHorizontalMovement = true;
     [SerializeField] private float maxDistanceFromCenter = 2.5f;
@@ -50,6 +50,44 @@ public class PlayerBallController : MonoBehaviour
     void Start()
     {
         startPosition = transform.position;
+        SetupTrailRenderer();
+    }
+
+    private void SetupTrailRenderer()
+    {
+        TrailRenderer trail = GetComponent<TrailRenderer>();
+        if (trail == null)
+        {
+            trail = gameObject.AddComponent<TrailRenderer>();
+        }
+
+        trail.time = 0.28f;
+        trail.minVertexDistance = 0.15f;
+
+        AnimationCurve curve = new AnimationCurve();
+        curve.AddKey(0f, 0.45f);
+        curve.AddKey(0.5f, 0.20f);
+        curve.AddKey(1f, 0.0f);
+        trail.widthCurve = curve;
+
+        Renderer r = GetComponent<Renderer>();
+        Color ballColor = r != null && r.sharedMaterial != null ? r.sharedMaterial.color : new Color(0.15f, 0.45f, 0.95f);
+
+        Gradient gradient = new Gradient();
+        gradient.SetKeys(
+            new GradientColorKey[] { new GradientColorKey(ballColor, 0.0f), new GradientColorKey(ballColor, 1.0f) },
+            new GradientAlphaKey[] { new GradientAlphaKey(0.9f, 0.0f), new GradientAlphaKey(0.0f, 1.0f) }
+        );
+        trail.colorGradient = gradient;
+
+        if (trail.material == null || trail.material.shader.name == "Standard")
+        {
+            Shader trailShader = Shader.Find("Universal Render Pipeline/Particles/Unlit") ?? Shader.Find("Sprites/Default");
+            if (trailShader != null)
+            {
+                trail.material = new Material(trailShader);
+            }
+        }
     }
 
     void Update()
@@ -184,6 +222,13 @@ public class PlayerBallController : MonoBehaviour
         {
             trail.startColor = ballColor;
             trail.endColor = new Color(ballColor.r, ballColor.g, ballColor.b, 0f);
+
+            Gradient gradient = new Gradient();
+            gradient.SetKeys(
+                new GradientColorKey[] { new GradientColorKey(ballColor, 0.0f), new GradientColorKey(ballColor, 1.0f) },
+                new GradientAlphaKey[] { new GradientAlphaKey(0.9f, 0.0f), new GradientAlphaKey(0.0f, 1.0f) }
+            );
+            trail.colorGradient = gradient;
         }
     }
 

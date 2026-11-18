@@ -116,9 +116,29 @@ public class GameHUDManager : MonoBehaviour
         if (hudPanel != null) hudPanel.SetActive(true);
     }
 
+    public void NextLevel()
+    {
+        Time.timeScale = 1.0f;
+        if (victoryPanel != null) victoryPanel.SetActive(false);
+        if (hudPanel != null) hudPanel.SetActive(true);
+
+        if (GameManager.singleton != null)
+        {
+            GameManager.singleton.NextLevel();
+        }
+        else
+        {
+            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        }
+    }
+
     public void RestartLevel()
     {
         Time.timeScale = 1.0f;
+        if (gameOverPanel != null) gameOverPanel.SetActive(false);
+        if (victoryPanel != null) victoryPanel.SetActive(false);
+        if (hudPanel != null) hudPanel.SetActive(true);
+
         if (GameManager.singleton != null)
         {
             GameManager.singleton.RestartLevel();

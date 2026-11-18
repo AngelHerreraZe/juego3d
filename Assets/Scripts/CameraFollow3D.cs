@@ -8,6 +8,8 @@ public class CameraFollow3D : MonoBehaviour
     [SerializeField] private float fixedHeightY = 3.5f;
     [SerializeField] private float smoothTimeX = 0.12f;
     [SerializeField] private float pitchAngle = 20.0f;
+    [SerializeField] private float yawAngle = -0.5f;
+    [SerializeField] private float rollAngle = 8.0f;
 
     private float currentVelocityX;
 
@@ -35,7 +37,7 @@ public class CameraFollow3D : MonoBehaviour
         float newY = fixedHeightY;
 
         transform.position = new Vector3(newX, newY, newZ);
-        transform.rotation = Quaternion.Euler(pitchAngle, 0f, 0f);
+        transform.rotation = Quaternion.Euler(pitchAngle, yawAngle, rollAngle);
     }
 
     public void SetTarget(Transform newTarget)
