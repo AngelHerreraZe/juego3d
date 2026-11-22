@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering.Universal;
 
 public class HelixController : MonoBehaviour
 {
@@ -16,6 +17,12 @@ public class HelixController : MonoBehaviour
 
     private void Awake()
     {
+        Screen.autorotateToPortrait = false;
+        Screen.autorotateToPortraitUpsideDown = false;
+        Screen.autorotateToLandscapeLeft = true;
+        Screen.autorotateToLandscapeRight = true;
+        Screen.orientation = ScreenOrientation.AutoRotation;
+
         startRotation = transform.localEulerAngles;
         if (topTransform != null && goalTransform != null)
         {
@@ -64,6 +71,22 @@ public class HelixController : MonoBehaviour
         if (Camera.main != null)
         {
             Camera.main.backgroundColor = stage.stageBackgroundColor;
+            Camera.main.allowHDR = false;
+            Camera.main.allowMSAA = false;
+
+            UniversalAdditionalCameraData camData = Camera.main.GetComponent<UniversalAdditionalCameraData>();
+            if (camData == null)
+            {
+                camData = Camera.main.gameObject.AddComponent<UniversalAdditionalCameraData>();
+            }
+            if (camData != null)
+            {
+                camData.renderType = CameraRenderType.Base;
+                camData.renderPostProcessing = false;
+                camData.renderShadows = true;
+                camData.requiresColorOption = CameraOverrideOption.Off;
+                camData.requiresDepthOption = CameraOverrideOption.Off;
+            }
         }
 
         RenderSettings.ambientLight = stage.stageBackgroundColor;

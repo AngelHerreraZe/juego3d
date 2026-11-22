@@ -149,8 +149,20 @@ public class PlayerBallController : MonoBehaviour
     void FixedUpdate()
     {
         Vector3 velocity = rb.linearVelocity;
-        velocity.x = inputX * moveSpeedX;
-        velocity.z = inputZ * moveSpeedZ;
+
+        Vector3 camRight = Camera.main != null ? Camera.main.transform.right : Vector3.right;
+        camRight.y = 0f;
+        if (camRight.sqrMagnitude > 0.001f) camRight.Normalize();
+        else camRight = Vector3.right;
+
+        Vector3 camForward = Camera.main != null ? Camera.main.transform.forward : Vector3.forward;
+        camForward.y = 0f;
+        if (camForward.sqrMagnitude > 0.001f) camForward.Normalize();
+        else camForward = Vector3.forward;
+
+        Vector3 moveDir = camRight * inputX + camForward * inputZ;
+        velocity.x = moveDir.x * moveSpeedX;
+        velocity.z = moveDir.z * moveSpeedZ;
 
         if (requestJump)
         {
@@ -283,6 +295,12 @@ public class PlayerBallController : MonoBehaviour
         perfectPass = 0;
         isSuperSpeedActive = false;
         superSpeedTimer = 0f;
+
+        CameraFollow3D cam = FindAnyObjectByType<CameraFollow3D>();
+        if (cam != null)
+        {
+            cam.ResetCamera();
+        }
     }
 
     public void SetInputX(float val) => inputX = val;
